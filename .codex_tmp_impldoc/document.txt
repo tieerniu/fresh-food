@@ -1,0 +1,377 @@
+5
+系统实现
+本章旨在将系统设计阶段构建的逻辑模型转化为可运行的软件代码实体。通过对底层开发环境的配置梳理、表现层跨平台交互界面的构建、底层密码学安全算法的实现，以及系统核心双重风控业务模块的真实源码解构，详细阐述“基于二维码的生鲜食品防伪溯源系统”的编码落地过程，并配以相关界面的效果截图予以验证。
+环境搭建
+构建稳定、高效的开发与运行环境是保障系统工程质量的先决条件。本系统的开发、编译与运行依赖如下基础环境矩阵：
+（1）开发工具下载：安装 IntelliJ IDEA 进行后端业务开发，WebStorm 用于前端 H5 工程构建，以及 Navicat、Redis Insight 等数据库管理工具的安装与配置。
+（2）基础环境及中间件安装：在本地与云服务器中安装 MySQL 8.0 关系型数据库以保障持久化数据安全，并部署 Redis 缓存中间件以支撑高频扫码防刷机制。
+（3）创建系统项目结构：利用 Maven 配置单体式 Spring Boot 项目骨架，在 pom.xml 中统一引入 MyBatis-Plus、ZXing 等核心技术依赖并管理公共版本号。
+（4）系统核心配置初始化：在 application.yml 中完成数据库连接池参数配置，并全局开启 MyBatis-Plus 下划线转驼峰自动映射规则。
+（5）安全机制的集成：实现基于 MD5 盐值哈希的密码脱敏防护体系，并构建基于 UUID 生成的无状态轻量化身份鉴权 Token 机制。
+（6）表现层交互配置：搭建 Node.js 前端运行环境，初始化 Vue 3 响应式工程，完成 Axios 全局请求拦截器与视图层权限卫士的配置。
+（7）验证测试：执行系统环境联调，确保数据库事务控制、状态机逻辑判定以及前后端通信链路正常工作。
+系统表现层的具体实现
+后台管理系统的具体实现
+生鲜后台管理系统基于 Spring Boot 框架快速搭建业务模块，通过 MyBatis-Plus 实现数据持久化操作。前端框架使用 Element Plus 与 Vue 3，通过 Axios 封装 RESTful API 与后端服务交互，快速响应页面请求。
+后台管理系统界面实现图如图5-1所示。根据用户角色权限判断，左边的菜单栏将展示不同的内容，包含产品管理、批次管理、二维码管理、质检与召回以及防伪预警中心等功能。
+图
+
+5-1 后台管理系统首页
+移动端 H5 响应式页面的具体实现
+消费者端 H5 响应式页面的开发采用 Vue 3 核心框架，通过 HTML5 与 CSS3 技术构建多状态适配的应用界面。在核心组件 TraceQuery.vue 的实现过程中，遵循单文件组件（SFC）的组织结构，利用 <template> 渲染视图骨架、<style> 编写响应式样式，并结合 <script> 处理基于 Axios 的异步业务逻辑与数据绑定机制。
+正常查验页面及高频预警展示如图 5-2 所示。系统通过路由截获扫码暗令，拉取生鲜单品的生产批次、原产地、保质期等关键档案。为提升防伪强度，页面集成黄色“系统风险提示”横幅，当检测到扫码频次异常时通过 v-if 指令动态渲染，同时展示绿色“正品认证”卡片。
+
+
+
+图
+
+5-2 正常查验与高频预警展示图                                   图
+
+5-3 商品过期状态拦截展示图
+过期拦截页面如上图 5-3 所示。系统通过“懒加载”算法动态计算商品生命周期，若判定当前时间已过保质期，则前端基于 qrStatus 变量强制弹出灰色“商品已过期”警示卡片，从食品安全维度保障消费者的食用健康。
+防伪引导页面如下图 5-4 所示。针对已被多次扫描的溯源码，系统在展示溯源轨迹的同时，通过蓝色“防伪提示”模块引导用户核实商品真伪。系统通过 scanCount 指标与物理状态解耦，在不影响正常信息展示的前提下，有效提示消费者谨防批量克隆风险。
+
+
+
+图
+
+5-4
+ 风险提示与防伪引导
+展示图                                  图
+
+5-5紧急召回状态阻断展示图
+紧急召回页面如上图 5-5 所示。一旦管理员在后台执行“物理冻结”指令，后端利用 UpdateWrapper 强刷状态，前端视图将立即响应并切换至红色“紧急召回警报”界面。该机制实现了对问题食品的全网实时阻断拦截，确保消费者在第一时间获知质量风险。
+系统基础架构与持久层的具体实现
+MyBatis-Plus 数据持久化及穿透更新实现
+在单体架构下，处理高危防伪预警（如恶意复制）时，系统需要具备跨模块联动的数据穿透能力 。本系统利用 MyBatis-Plus 提供的 UpdateWrapper 条件构造器，在不加载完整实体对象、不占用 JVM 过多内存的前提下，直接在数据库层面对防伪码的物理状态发起击穿式更新 。该机制允许系统通过唯一密文标识符（unique_code）作为索引，强行将受阻防伪码标记为“已召回”（Recalled）状态 。这种底层逻辑的直接干预，确保了当安全分析员下达冻结指令时，问题商品在消费端 H5 查询界面会被第一时间拦截，实现了业务指令与物理状态的瞬间同步 。关键代码如下：
+// 联动处理二维码状态
+            if ("freeze".equals(actionType)) {
+                UpdateWrapper<QrCode> updateWrapper = new UpdateWrapper<>();
+                updateWrapper.eq("unique_code", warning.getUniqueCode());
+                   QrCode qrCodeUpdate = new QrCode();
+                qrCodeUpdate.setStatus("Recalled");
+                      // 执行击穿更新
+                qrCodeMapper.update(qrCodeUpdate, updateWrapper);
+            }
+高并发场景下的原子级防重实现
+针对非正常用户通过自动化脚本或爬虫工具发起的恶意高频扫码探底请求，系统设计了原子级的防刷风控拦截机制 。系统在核心溯源接口中实施“读写一体化”策略，每次真实扫码动作均会立刻触发 scanCount + 1 的数据落盘操作，通过数据库行级锁保障计数的准确性 。同时，为防止在高并发环境下系统针对同一码源产生大量重复的告警脏数据，系统在插入新预警记录前，利用 QueryWrapper 实时校验防伪预警表中是否已存在该标识符且处于 Pending（待处理）状态的存活工单 。这种基于幂等性设计的无锁化防抖拦截逻辑，在保障风控实时性的前提下，极大降低了数据库的 I/O 冗余压力 。关键代码如下：
+        qrCode.setScanCount(qrCode.getScanCount() + 1);
+        qrCodeMapper.updateById(qrCode);
+        // 4.5 防伪预警检测（与物理状态解耦）
+        if (qrCode.getScanCount() >= 5) {
+            try {
+                QueryWrapper<SecurityWarning> warnQuery = new QueryWrapper<>();
+                warnQuery.eq("unique_code", uniqueCode)
+                         .in("status", "Pending", "待处理");
+                Long count = securityWarningMapper.selectCount(warnQuery);
+                if (count != null && count == 0) {
+                    // 无重复锁定时，方才插入唯一的预警记录
+                    SecurityWarning warning = new SecurityWarning();
+                    warning.setUniqueCode(uniqueCode);
+                    warning.setWarningType("FrequentScan");
+                    warning.setWarningContent("系统风控：该防伪码扫码频次已达预警阈值，存在恶意复制风险！");
+                    warning.setStatus("Pending");
+                    warning.setCreatedAt(LocalDateTime.now());
+                    securityWarningMapper.insert(warning);
+                }
+            } catch (Exception e) {
+                System.err.println("插入防伪预警失败: " + e.getMessage());
+            }
+        }
+系统安全机制的具体实现
+传统的生鲜电商溯源系统往往存在横向越权、水平权限漏洞或溯源码易被穷举遍历的安全隐患。针对生鲜流通领域的独特性，本系统从用户身份认证链路与核心防伪发号算法两方面构建了立体化的安全防护体系 。
+基于哈希的密码防护体系
+通由于系统存储了敏感的生鲜流转节点信息与企业管控权，后台管理体系严禁以明文形式存储任何账户口令 。在用户登录认证流程中，前端通过 RESTful 接口抛送的明文口令将立刻进入业务逻辑层，经由 MD5 加密算法计算其不可逆的 Hash 摘要 。系统随后利用 QueryWrapper 检索用户态实体，并将计算得出的实时摘要与数据库记录的指纹密文进行硬性匹配校验 。该机制确保了即使生产环境数据库遭遇非法物理脱库，攻击者也无法通过密文反向推断出凭证原文，最大程度保障了系统管理主权的安全性 。关键代码如下：
+
+String username = loginData.get("username");
+            String password = loginData.get("password");
+            // 1. 计算前端传入明文密码的 MD5 Hash 摘要
+            String codeHash = MD5Utils.encrypt(password);
+            // 2. 利用 MyBatis-Plus QueryWrapper 查询对应用户态
+            QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("username", username);
+            User user = userMapper.selectOne(queryWrapper);
+            // 拦截器：判空及 Hash 摘要硬性比对
+            if (user == null || !codeHash.equals(user.getPasswordHash())) {
+                result.put("code", 400);
+                result.put("message", "账号或密码错误");
+                return result;
+            }
+无状态 Token 的生成与动态管控
+本系统摒弃了传统的、依赖于容器内存的服务器 Session 状态机，全面采用了符合前后端分离架构的无状态认证模式（Stateless Authentication） 。当操作员身份 Hash 校验成功后，系统利用 Java 原生的通用唯一识别码生成器（UUID.randomUUID）进行切片去杠处理，实时生成全网无碰撞的安全访问令牌（Token） 。该 Token 作为接口请求的唯一合法凭证，将下放至 Vue 前端进行本地化缓存，并随 Axios 请求头实时回传，配合后端的动态鉴权切面，实现了高效、低延迟的会话维持 。关键代码如下：
+            String token = UUID.randomUUID().toString().replace("-", "");
+            // 组装回传前端的安全载荷与权属
+            Map<String, Object> userData = new HashMap<>();
+            userData.put("username", user.getUsername());
+            userData.put("role", user.getRole());
+            userData.put("fullName", user.getFullName());
+            Map<String, Object> data = new HashMap<>();
+            data.put("token", token);
+            data.put("user", userData);
+防伪码加密混淆生成机制
+为阻断第三方黑灰产团伙通过数据库自增序列进行枚举探源或暴力爬取，系统发号器设计杜绝了一切有序主键作为防伪明文的方案 。系统核心发号算法基于最高位元的时间戳注入（System.currentTimeMillis）进行物理定序标记，并挂载一个在 10000 随机区间内的高斯震荡偏移量，确保生成的码值在时间轴上具备极大的离散度 。同时，每一枚码均附加由 UUID 生成的 16 位防碰撞 securityToken 作为最终的安全暗记特征 。这套双重算法结构确保生成的唯一防伪序列（unique_code）具备不可逆推、不可遍历且高度混乱的防伪隐蔽熵 。关键代码如下：
+// 批量生成携带混淆标量的二维防伪溯源码
+
+   for (int i = 0; i < count; i++) {
+                QrCode qrCode = new QrCode();
+                qrCode.setBatchId(batchId);
+
+            uniqueCode
+                qrCode.setUniqueCode(generateUniqueCode());
+
+                qrCode.setSecurityToken(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
+                qrCode.setStatus("Active");
+                qrCode.setScanCount(0);
+                qrCode.setCreatedAt(LocalDateTime.now());
+                qrCodeMapper.insert(qrCode);
+            }
+    private String generateUniqueCode() {
+        // [前缀头] + [毫秒级时间戳定序因子] + [4位随机扰动因子补零控制]
+        return "QR" + System.currentTimeMillis() + String.format("%04d", (int) (Math.random() * 10000));
+    }
+系统核心业务模块的具体实现
+系统用户与权限模块的具体实现
+以用户密码修改与权限管理功能为例，论述其具体实现过程。后端采用 Spring Boot 构建 RESTful API，结合 MD5 盐值加密技术保障密码不可逆；前端采用 Vue 3 与 Element Plus 搭建管理界面，通过 Axios 调用服务接口实现数据动态展示与修改。
+其用户密码修改与权限验证的流程图如图 5-5 所示。
+ [此处插入图 5-5：用户密码修改与权限验证流程图]
+图
+
+5-
+5 
+流程图
+部分核心代码如下。
+    @PostMapping("/password")
+    public Map<String, Object> changePassword(@RequestBody Map<String, String> params) {
+        // 根据用户名查询用户实体
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("username", username.trim());
+        User user = userMapper.selectOne(queryWrapper);
+        // 验证旧密码 Hash 摘要
+        String encryptedOldPassword = MD5Utils.encrypt(oldPassword);
+        if (!encryptedOldPassword.equals(user.getPasswordHash())) {
+            result.put("code", 400);
+            result.put("message", "旧密码错误");
+            return result;
+        }
+        // 摘要哈希加密新密码并持久化更新
+        String encryptedNewPassword = MD5Utils.encrypt(newPassword);
+        user.setPasswordHash(encryptedNewPassword);
+        user.setUpdatedAt(LocalDateTime.now());
+        int rows = userMapper.updateById(user);
+        // ...
+    }
+
+其系统用户与权限模块效果图如图 5-6 所示。
+图
+
+5-
+6 系统用户管理界面
+效果图
+产品批次与源头模块的具体实现
+以生鲜产品基础信息与批次建档功能为例，论述其具体实现过程。批次建档是溯源生命周期的起点，后端通过 ProductBatchController 接收前端传递的表单，封装生产日期与保质期等核心字段，调用 MyBatis-Plus 的 insert 方法执行底层事务写入，为后续二维码发号提供 batch_id 外键支撑。
+其产品批次建档的流程图如图 5-7 所示。
+
+[此处插入图 5-7：产品批次建档流程图]
+图
+
+5-
+7 
+流程图
+部分核心代码如下。
+    @PostMapping("/add")
+    public Map<String, Object> addProduct(@RequestBody ProductBatch productBatch) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            // 设置系统建档底层时间
+            productBatch.setCreatedAt(LocalDateTime.now());
+            // 默认强关联溯源生产商工厂标识
+            productBatch.setManufacturerId(1);
+            // 执发 MyBatis-Plus 批量插入数据库操作
+            int rows = productBatchMapper.insert(productBatch);
+            if (rows > 0) {
+                result.put("code", 200);
+                result.put("message", "新增成功");
+                result.put("data", productBatch);
+            } else {
+                result.put("code", 500);
+                result.put("message", "新增失败");
+            }
+        } catch (Exception e) {
+            result.put("code", 500);
+            result.put("message", "新增失败: " + e.getMessage());
+        }
+        return result;
+    }    
+其产品批次与源头模块效果图如图 5-8 所示。
+图
+
+5-
+8 批次管理界面
+效果图
+质检与全链召回模块的具体实现
+以质检报告录入与跨表拦截机制为例，论述其具体实现过程。前端提交质检不合格凭证后，后端不仅在质检流水表生成档案，还会触发 isRecalled 级联拦截引擎，利用 UpdateWrapper 强行击穿底层生命周期表，瞬间封锁该批次下所有的溯源二维码。
+其质检报告录入与级联召回的流程图如图 5-9 所示。
+ [此处插入图 5-9：质检报告录入与级联召回流程图]
+图
+
+5-
+9 
+流程图
+部分核心代码如下。
+    @PostMapping("/add")
+    public Map<String, Object> add(@RequestBody QualityInspection inspection) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            if (inspection.getInspectionDate() == null) {
+                inspection.setInspectionDate(LocalDate.now());
+            }
+            inspectionMapper.insert(inspection);
+            // 跨表状态击穿联动：如果本次质检不通过且启动了召回
+            if (isRecalled(inspection)) {
+                UpdateWrapper<QrCode> updateWrapper = new UpdateWrapper<>();
+                updateWrapper.eq("batch_id", inspection.getBatchId());
+
+                QrCode updateData = new QrCode();
+                updateData.setStatus("Recalled"); // 标记高危红灯拦截隔离拦截
+
+                qrCodeMapper.update(updateData, updateWrapper);
+            }
+         其质检与全链召回模块效果图如图 5-10 所示。 
+图
+
+5-
+1
+0 质检与缺陷管控中心界面
+效果图
+防伪二维码加密与生成模块的具体实现
+以防伪溯源码批量生成功能为例，论述其具体实现过程。系统在批量制码阶段采用了时间戳偏移防嗅探机制，利用高斯伪随机加盐技术在 for 循环内生成每一枚不可预测的主追踪码 (unique_code)，并下挂一条 UUID 安全暗码，最后通过存储接口推送入库。
+其防伪二维码批量加密生成的流程图如图 5-11 所示。
+ [此处插入图 5-11：防伪二维码批量加密生成流程图
+图
+
+5-
+1
+1 
+流程图
+部分核心代码如下。
+// 获取管理员指定的发码数量
+           Integer count = params.get("count") != null ? (Integer) params.get("count") : 1;
+            // 批量发码循环生成二维码实体簇
+            for (int i = 0; i < count; i++) {
+                QrCode qrCode = new QrCode();
+                qrCode.setBatchId(batchId);
+
+                // 挂载时间戳与 Math.random() 混淆熵散列生成 unique_code (主追踪标识)
+                qrCode.setUniqueCode(generateUniqueCode());
+                // 挂载利用 UUID 脱去连段截取的 16 位安全防御令牌 securityToken
+                qrCode.setSecurityToken(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
+                qrCode.setStatus("Active");  // 赋码出圈即初始化为可用状态
+                qrCode.setScanCount(0);
+                // 原子计数锁归零
+                qrCode.setCreatedAt(LocalDateTime.now());
+                // 游标落盘
+                qrCodeMapper.insert(qrCode);
+            }  
+其防伪二维码管理模块效果图如图 5-12 所示。
+图
+
+5-
+1
+2 防伪二维码管理界面
+效果图
+订单服务模块的具体实现
+基以消费者移动端扫码查验功能为例，论述其具体实现过程。该接口是整个防伪大网的枢纽，后端接收 unique_code 后，依次执行 LocalDate 懒加载过期拦截、数据库无锁排他级扫码累加 (scanCount + 1) 以及高频阈值风控拦截。当触发阈值时，向业务中台异步推报安防工单，最后组装大视图 VO 响应给前端。
+其扫码查验与双重风控过滤的流程图如图 5-13 所示。
+
+[此处插入图 5-13：扫码查验与双重风控过滤流程图]
+图
+
+5-
+1
+3 
+流程图
+部分核心代码如下。
+    @GetMapping("/query/{uniqueCode}")
+    public Map<String, Object> queryTraceability(@PathVariable String uniqueCode, HttpServletRequest request) {
+        //  第一重安全保障：自动推导过期判断拦截
+        if (batch.getProductionDate() != null && batch.getShelfLifeDays() != null) {
+            LocalDate expirationDate = batch.getProductionDate().plusDays(batch.getShelfLifeDays());
+            if (LocalDate.now().isAfter(expirationDate)) {
+                // 自动驱逐过期状态，优先保障食品健康逻辑
+                if (!"Recalled".equals(qrCode.getStatus()) && !"Sold".equals(qrCode.getStatus())) {
+                    qrCode.setStatus("Expired");
+                    qrCodeMapper.updateById(qrCode);
+                }
+            }
+        }
+        qrCode.setScanCount(qrCode.getScanCount() + 1);
+        qrCodeMapper.updateById(qrCode);
+        // 第三重预警系统闭环拦截（与底层状态机解耦分离）
+        if (qrCode.getScanCount() >= 5) {
+            try {
+                // 利用数据库排他级 QueryWrapper 实施反防抖检测
+                QueryWrapper<SecurityWarning> warnQuery = new QueryWrapper<>();
+            warnQuery.eq("unique_code", uniqueCode).in("status", "Pending", "待处理");
+                if (securityWarningMapper.selectCount(warnQuery) == 0) {
+                    // 若告警系统内无存活流转记录，挂载异常单上报安全中台库
+                    SecurityWarning warning = new SecurityWarning();
+                    warning.setUniqueCode(uniqueCode);
+                    warning.setWarningContent("系统风控：该防伪码扫码频次已达预警阈值，存在恶意复制风险！");
+                    warning.setStatus("Pending");
+                    securityWarningMapper.insert(warning);
+                }
+            } catch (Exception e) {}
+        }
+        //  脱敏组装并打包下发溯源历史大视图与终端节点详情层
+        result.put("success", true);
+        result.put("product", batch);
+        result.put("qrCodeStatus", qrCode.getStatus());
+        result.put("scanCount", qrCode.getScanCount());
+        result.put("traceRecords", records);
+        return result;
+    }  
+其移动端 H5 溯源与风控模块效果图如图 5-14 所示。
+图
+
+5-
+14 H5防伪溯源时间轴界面
+效果图
+防伪预警监控与人工干预模块的具体实现
+产以安全管理员人工干预风控告警为例，论述其具体实现过程。安全大盘接收到 Pending 状态的告警单后，管理员发起 freeze 冻结指令。后台控制器接收动作，不仅将工单变更为 Resolved 归档，更通过数据库反向寻源锁定目标实体，执行全流程生态安全壁垒封杀。
+其防伪预警人工干预裁决的流程图如图 5-15 所示。
+ [此处插入图 5-15：防伪预警人工干预裁决流程图]
+图
+
+5-
+1
+5 
+流程图
+部分核心代码如下。
+    @PutMapping("/resolve/{id}")
+    public Map<String, Object> resolve(
+            @PathVariable Integer id,
+            @RequestParam(value = "actionType", defaultValue = "ignore") String actionType) {
+        // 查询告警单
+        SecurityWarning warning = warningMapper.selectById(id);
+        // 变更告警单审计状态归档
+        warning.setStatus("Resolved");
+        warning.setHandledAt(LocalDateTime.now());
+        warningMapper.updateById(warning);
+        // 防伪溯源核心级联动作响应：如果是拦截冻结的指令
+        if ("freeze".equals(actionType)) {
+            // 阻断流传播系，实施该独特指纹唯一源防伪码的物理封锁下架
+            UpdateWrapper<QrCode> updateWrapper = new UpdateWrapper<>();
+            updateWrapper.eq("unique_code", warning.getUniqueCode());
+            QrCode qrCodeUpdate = new QrCode();
+            qrCodeUpdate.setStatus("Recalled");
+            qrCodeMapper.update(qrCodeUpdate, updateWrapper);
+        }
+    }      
+其防伪预警中心模块效果图如图 5-16 所示。
+图
+
+5-
+16 防伪预警大盘界面
+效果图
+本章小结
+在本章中，详细介绍了生鲜防伪溯源系统的搭建过程，包括环境配置、安全机制实现、六大核心功能模块的具体实现流程。通过展示核心业务代码、底层算法逻辑和页面效果图，全面展示了系统从拦截防刷到溯源查询各个功能的实现细节，验证了单体架构在生鲜防伪场景下的高效性与安全性，为后续的系统测试提供了详实的参考。
