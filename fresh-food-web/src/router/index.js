@@ -1,8 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import TraceQuery from '@/views/TraceQuery.vue'
-import Login from '@/views/Login.vue'
-import AdminLayout from '@/layout/AdminLayout.vue'
-import Dashboard from '@/views/admin/Dashboard.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -16,19 +13,19 @@ const router = createRouter({
     {
       path: '/login',
       name: 'Login',
-      component: Login,
+      component: () => import('@/views/Login.vue'),
       meta: { title: '登录' }
     },
     {
       path: '/admin',
-      component: AdminLayout,
+      component: () => import('@/layout/AdminLayout.vue'),
       redirect: '/admin/dashboard',
       meta: { requiresAuth: true },
       children: [
         {
           path: 'dashboard',
           name: 'Dashboard',
-          component: Dashboard,
+          component: () => import('@/views/admin/Dashboard.vue'),
           meta: { title: '控制台' }
         },
         {
