@@ -1,0 +1,28 @@
+name: fresh-food-system
+
+services:
+  fresh-food:
+    image: ghcr.io/tieerniu/fresh-food:latest
+    container_name: fresh-food
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: fresh_food_db
+      MYSQL_USER: fresh
+      MYSQL_PASSWORD: fresh_password
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+      APP_H5_BASE_URL: ""
+    ports:
+      - "80:80"
+    volumes:
+      - fresh-food-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/api/trace/public-config >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+volumes:
+  fresh-food-mysql-data:
