@@ -36,7 +36,7 @@ as_root() {
 
 require_domain() {
     [ -n "$DOMAIN" ] || die "请这样运行：DOMAIN=你的域名 sh domain-fix.sh"
-    DOMAIN="$(printf '%s' "$DOMAIN" | sed 's#^https\?://##; s#/$##')"
+    DOMAIN="$(printf '%s' "$DOMAIN" | sed 's#^http://##; s#^https://##; s#/$##')"
 }
 
 check_files() {
