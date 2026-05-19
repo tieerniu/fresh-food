@@ -90,6 +90,33 @@ const router = createRouter({
   ]
 })
 
+const chunkLoadPatterns = [
+  /Failed to fetch dynamically imported module/i,
+  /Importing a module script failed/i,
+  /Unable to preload/i,
+  /Loading chunk/i
+]
+
+router.onError(error => {
+  const message = error?.message || String(error || '')
+  if (!chunkLoadPatterns.some(pattern => pattern.test(message))) {
+    return
+  }
+
+  const retryKey = 'fresh-food-route-chunk-retry'
+  if (sessionStorage.getItem(retryKey) === '1') {
+    sessionStorage.removeItem(retryKey)
+    return
+  }
+
+  sessionStorage.setItem(retryKey, '1')
+  window.location.reload()
+})
+
+router.afterEach(() => {
+  sessionStorage.removeItem('fresh-food-route-chunk-retry')
+})
+
 /**
  * 从 localStorage 获取当前用户角色
  */
