@@ -10,6 +10,38 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue()],
+    build: {
+      cssCodeSplit: false,
+      modulePreload: {
+        resolveDependencies: () => []
+      },
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('echarts') || id.includes('zrender')) {
+                return 'charts'
+              }
+              if (
+                  id.includes('element-plus') ||
+                  id.includes('@element-plus') ||
+                  id.includes('@popperjs') ||
+                  id.includes('lodash')
+              ) {
+                return 'element-plus'
+              }
+              if (id.includes('vue') || id.includes('vue-router')) {
+                return 'vue'
+              }
+              if (id.includes('axios')) {
+                return 'http'
+              }
+              return 'vendor'
+            }
+          }
+        }
+      }
+    },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url))

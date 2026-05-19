@@ -81,11 +81,19 @@ const handleLogin = async () => {
       })
     })
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
+    const responseText = await response.text()
+    let res = {}
+    try {
+      res = responseText ? JSON.parse(responseText) : {}
+    } catch (error) {
+      res = {}
     }
 
-    const res = await response.json()
+    if (!response.ok) {
+      message.value = res.message || res.error || `HTTP ${response.status}`
+      return
+    }
+
     if (res.code === 200 && res.data) {
       localStorage.setItem('token', res.data.token)
       localStorage.setItem('userInfo', JSON.stringify(res.data.user))
