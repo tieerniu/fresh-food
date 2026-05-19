@@ -311,7 +311,8 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { Plus, Location, User, Search } from '@element-plus/icons-vue'
 import { getRecordList, addRecord, updateRecord, deleteRecord } from '@/api/record'
 import { getProductList } from '@/api/product'

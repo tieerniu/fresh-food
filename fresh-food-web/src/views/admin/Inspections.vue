@@ -275,7 +275,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { WarnTriangleFilled, Plus, Search } from '@element-plus/icons-vue'
 import { getInspectionList, addInspection, updateInspection, deleteInspection } from '@/api/inspection'
 import { getProductList } from '@/api/product'

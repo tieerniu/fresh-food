@@ -5,136 +5,55 @@ import router from './router'
 // 引入全局样式（如果需要）
 const app = createApp(App)
 
+const loadStyle = loader => {
+    loader().catch(error => {
+        console.warn('样式资源加载失败:', error)
+    })
+}
+
+const useElementPlugins = plugins => {
+    plugins.forEach(plugin => {
+        if (plugin) app.use(plugin)
+    })
+}
+
 let traceElementPlusRegistered = false
 const registerTraceElementPlus = async () => {
     if (traceElementPlusRegistered) return
 
-    await import('element-plus/dist/index.css')
-    const {
-        ElAlert,
-        ElButton,
-        ElIcon,
-        ElImage,
-        ElInput,
-        ElTag,
-        ElTimeline,
-        ElTimelineItem
-    } = await import('element-plus')
-
-    ;[
-        ElAlert,
-        ElButton,
-        ElIcon,
-        ElImage,
-        ElInput,
-        ElTag,
-        ElTimeline,
-        ElTimelineItem
-    ].forEach(plugin => app.use(plugin))
+    loadStyle(() => import('element-plus/dist/index.css'))
+    const { traceElementPlusPlugins } = await import('./plugins/trace-element-plus')
+    useElementPlugins(traceElementPlusPlugins)
 
     traceElementPlusRegistered = true
 }
 
+let adminBaseElementPlusRegistered = false
 let adminElementPlusRegistered = false
-const registerAdminElementPlus = async () => {
-    if (adminElementPlusRegistered) return
+const registerAdminElementPlus = async to => {
+    const isDashboardRoute = ['/admin', '/admin/', '/admin/dashboard'].includes(to.path)
 
-    await import('element-plus/dist/index.css')
-    await import('./styles/admin-theme.css')
-    const {
-        ElAside,
-        ElButton,
-        ElCard,
-        ElCheckbox,
-        ElCol,
-        ElContainer,
-        ElDatePicker,
-        ElDescriptions,
-        ElDescriptionsItem,
-        ElDialog,
-        ElDrawer,
-        ElDropdown,
-        ElDropdownItem,
-        ElDropdownMenu,
-        ElEmpty,
-        ElForm,
-        ElFormItem,
-        ElHeader,
-        ElIcon,
-        ElInput,
-        ElInputNumber,
-        ElLink,
-        ElLoading,
-        ElMain,
-        ElMenu,
-        ElMenuItem,
-        ElOption,
-        ElPagination,
-        ElPopover,
-        ElProgress,
-        ElRadioButton,
-        ElRadioGroup,
-        ElRow,
-        ElSelect,
-        ElSwitch,
-        ElTable,
-        ElTableColumn,
-        ElTag,
-        ElText,
-        ElTooltip
-    } = await import('element-plus')
+    loadStyle(() => import('element-plus/dist/index.css'))
+    loadStyle(() => import('./styles/admin-theme.css'))
 
-    ;[
-        ElAside,
-        ElButton,
-        ElCard,
-        ElCheckbox,
-        ElCol,
-        ElContainer,
-        ElDatePicker,
-        ElDescriptions,
-        ElDescriptionsItem,
-        ElDialog,
-        ElDrawer,
-        ElDropdown,
-        ElDropdownItem,
-        ElDropdownMenu,
-        ElEmpty,
-        ElForm,
-        ElFormItem,
-        ElHeader,
-        ElIcon,
-        ElInput,
-        ElInputNumber,
-        ElLink,
-        ElLoading,
-        ElMain,
-        ElMenu,
-        ElMenuItem,
-        ElOption,
-        ElPagination,
-        ElPopover,
-        ElProgress,
-        ElRadioButton,
-        ElRadioGroup,
-        ElRow,
-        ElSelect,
-        ElSwitch,
-        ElTable,
-        ElTableColumn,
-        ElTag,
-        ElText,
-        ElTooltip
-    ].forEach(plugin => app.use(plugin))
+    if (!adminBaseElementPlusRegistered) {
+        const { adminBaseElementPlusPlugins } = await import('./plugins/admin-base-element-plus')
+        useElementPlugins(adminBaseElementPlusPlugins)
+        adminBaseElementPlusRegistered = true
+    }
 
-    adminElementPlusRegistered = true
+    if (!isDashboardRoute && !adminElementPlusRegistered) {
+        const { adminElementPlusPlugins } = await import('./plugins/admin-element-plus')
+        useElementPlugins(adminElementPlusPlugins)
+        adminElementPlusRegistered = true
+    }
 }
 
 router.beforeEach(async (to, from, next) => {
     if (to.path === '/trace') {
         await registerTraceElementPlus()
     } else if (to.path.startsWith('/admin')) {
-        await registerAdminElementPlus()
+        await registerAdminElementPlus(to)
     }
     next()
 })

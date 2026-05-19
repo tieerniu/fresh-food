@@ -86,7 +86,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { User } from '@element-plus/icons-vue'
 import { fetchCurrentUserInfo, getLocalUserInfo, changePassword, clearLocalAuth } from '@/api/user'
 

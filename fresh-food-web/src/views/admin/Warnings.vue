@@ -237,7 +237,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { Warning, Lock, InfoFilled, DocumentChecked, ArrowDown } from '@element-plus/icons-vue'
 import { getWarningList, resolveWarning, deleteWarning, clearHandledWarnings } from '@/api/warning'
 

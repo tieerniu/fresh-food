@@ -435,7 +435,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { Plus, ArrowDown, Search, View } from '@element-plus/icons-vue'
 import { getQrCodeList, generateQrCode, updateQrCodeStatus, deleteQrCode } from '@/api/qrcode'
 import { getProductList } from '@/api/product'

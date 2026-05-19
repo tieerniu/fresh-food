@@ -82,9 +82,14 @@ write_caddyfile() {
     tmp_file="$(mktemp)"
 
     {
+        printf '{\n'
         if [ -n "$EMAIL" ]; then
-            printf '{\n    email %s\n}\n\n' "$EMAIL"
+            printf '    email %s\n' "$EMAIL"
         fi
+        printf '    servers {\n'
+        printf '        protocols h1 h2\n'
+        printf '    }\n'
+        printf '}\n\n'
 
         printf '%s {\n' "$DOMAIN"
         printf '    encode gzip\n'

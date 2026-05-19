@@ -177,7 +177,8 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { OfficeBuilding, Plus, Search, ArrowDown } from '@element-plus/icons-vue'
 import { getSupplierList, addSupplier, updateSupplier, deleteSupplier, resetSupplierPassword, updateSupplierAccountStatus } from '@/api/supplier'
 

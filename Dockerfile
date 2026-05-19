@@ -26,6 +26,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        gzip \
         nginx \
         openjdk-17-jre-headless \
     && rm -rf /var/lib/apt/lists/* \
@@ -38,7 +39,8 @@ COPY database/init.sql /docker-entrypoint-initdb.d/01-init.sql
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY deploy/entrypoint.sh /usr/local/bin/fresh-food-entrypoint.sh
 
-RUN chmod +x /usr/local/bin/fresh-food-entrypoint.sh
+RUN chmod +x /usr/local/bin/fresh-food-entrypoint.sh \
+    && find /usr/share/nginx/html -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' -o -name '*.json' -o -name '*.svg' \) -exec gzip -k -9 {} \;
 
 EXPOSE 80
 

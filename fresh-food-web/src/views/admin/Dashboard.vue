@@ -158,7 +158,6 @@ import { Box, List, Grid, View } from '@element-plus/icons-vue'
 import { getDashboardStats, getChartData } from '@/api/dashboard'
 import { getProductList } from '@/api/product'
 import { getRecordList } from '@/api/record'
-import * as echarts from 'echarts'
 
 const currentTime = ref('')
 const normalizeStatus = (status) => status === 'Sold' ? 'Active' : status
@@ -518,6 +517,29 @@ const lineChartRef = ref(null)
 const pieChartRef = ref(null)
 let lineChart = null
 let pieChart = null
+let echartsModule = null
+
+const loadEcharts = async () => {
+  if (echartsModule) return echartsModule
+
+  const [core, charts, components, renderers] = await Promise.all([
+    import('echarts/core'),
+    import('echarts/charts'),
+    import('echarts/components'),
+    import('echarts/renderers')
+  ])
+
+  core.use([
+    charts.LineChart,
+    charts.PieChart,
+    components.GridComponent,
+    components.LegendComponent,
+    components.TooltipComponent,
+    renderers.CanvasRenderer
+  ])
+  echartsModule = core
+  return echartsModule
+}
 
 const getLast7Days = () => {
   const days = []
@@ -544,7 +566,7 @@ const loadEnterpriseOperations = async () => {
   }
 }
 
-const initLineChart = (scanTrend) => {
+const initLineChart = (scanTrend, echarts) => {
   if (!lineChartRef.value) return
   lineChart = echarts.init(lineChartRef.value)
 
@@ -603,7 +625,7 @@ const initLineChart = (scanTrend) => {
 const statusNameMap = { 'Active': '激活', 'Expired': '过期', 'Recalled': '召回' }
 const statusColorMap = { 'Active': '#67c23a', 'Expired': '#f56c6c', 'Recalled': '#e6a23c' }
 
-const initPieChart = (qrStatusDist) => {
+const initPieChart = (qrStatusDist, echarts) => {
   if (!pieChartRef.value || !isAdmin.value) return
   pieChart = echarts.init(pieChartRef.value)
 
@@ -702,8 +724,14 @@ onMounted(async () => {
   }
 
   await nextTick()
-  initLineChart(scanTrend)
-  initPieChart(qrStatusDist)
+  loadEcharts()
+      .then(echarts => {
+        initLineChart(scanTrend, echarts)
+        initPieChart(qrStatusDist, echarts)
+      })
+      .catch(error => {
+        console.error('图表资源加载失败:', error)
+      })
   window.addEventListener('resize', handleResize)
 })
 
