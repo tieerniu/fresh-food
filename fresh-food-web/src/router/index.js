@@ -1,13 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import TraceQuery from '@/views/TraceQuery.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
+      redirect: to => {
+        if (to.query && to.query.code) {
+          return { path: '/trace', query: to.query }
+        }
+        return { path: '/login' }
+      }
+    },
+    {
+      path: '/trace',
       name: 'TraceQuery',
-      component: TraceQuery,
+      component: () => import('@/views/TraceQuery.vue'),
       meta: { title: '溯源查询' }
     },
     {
