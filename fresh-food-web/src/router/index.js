@@ -37,6 +37,12 @@ const router = createRouter({
           meta: { title: '控制台' }
         },
         {
+          path: 'applications',
+          name: 'BatchApplications',
+          component: () => import('@/views/admin/BatchApplications.vue'),
+          meta: { title: '批次申报审批' }
+        },
+        {
           path: 'products',
           name: 'Products',
           component: () => import('@/views/admin/Products.vue'),

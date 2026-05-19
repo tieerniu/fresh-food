@@ -26,6 +26,11 @@
           <template #title>控制台</template>
         </el-menu-item>
 
+        <el-menu-item index="/admin/applications">
+          <el-icon><DocumentChecked /></el-icon>
+          <template #title>{{ isAdmin ? '批次审批' : '批次申报' }}</template>
+        </el-menu-item>
+
         <el-menu-item index="/admin/products">
           <el-icon><Box /></el-icon>
           <template #title>产品管理</template>
@@ -128,7 +133,8 @@ import {
   Fold,
   OfficeBuilding,
   Warning,
-  WarnTriangleFilled
+  WarnTriangleFilled,
+  DocumentChecked
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

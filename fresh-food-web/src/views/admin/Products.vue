@@ -5,12 +5,9 @@
         <div class="card-header">
           <div class="header-left">
             <el-icon><Box /></el-icon>
-            <span>产品批次管理</span>
+            <span>正式产品批次</span>
           </div>
-          <el-button type="primary" @click="openAddDialog">
-            <el-icon><Plus /></el-icon>
-            新增批次
-          </el-button>
+          <el-tag type="success" round>审核通过后自动进入</el-tag>
         </div>
       </template>
 
@@ -119,7 +116,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="140" align="center" fixed="right">
+        <el-table-column v-if="isAdmin" label="操作" width="140" align="center" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button type="primary" link @click="openEditDialog(row)">
@@ -147,10 +144,10 @@
       </div>
     </el-card>
 
-    <!-- 新增/编辑对话框 -->
+    <!-- 编辑对话框：正式批次只能由审批通过自动生成 -->
     <el-dialog
         v-model="dialogVisible"
-        :title="isEdit ? '编辑产品批次' : '新增产品批次'"
+        title="编辑产品批次"
         width="600px"
         @close="resetForm"
     >
@@ -240,7 +237,7 @@
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
-          {{ isEdit ? '保存' : '新增' }}
+          保存
         </el-button>
       </template>
     </el-dialog>
@@ -250,8 +247,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Box, Plus, Search, Picture } from '@element-plus/icons-vue'
-import { getProductList, addProduct, updateProduct, deleteProduct } from '@/api/product'
+import { Box, Search, Picture } from '@element-plus/icons-vue'
+import { getProductList, updateProduct, deleteProduct } from '@/api/product'
 import { getEnterpriseOptions, getLocalUserInfo } from '@/api/user'
 
 // 列表数据（后端全量）
@@ -388,24 +385,6 @@ const getIssuePercent = (row) => {
   return Math.min(100, Math.round((generated / total) * 100))
 }
 
-// 生成更短的批次号：PB-YYMMDD-HHMMSS-RRR
-const generateBatchCode = () => {
-  const now = new Date()
-  const pad = (n) => String(n).padStart(2, '0')
-  const date = `${String(now.getFullYear()).slice(2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
-  const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-  const random = Math.floor(Math.random() * 900 + 100)
-  return `PB-${date}-${time}-${random}`
-}
-
-// 打开新增对话框
-const openAddDialog = () => {
-  isEdit.value = false
-  resetForm()
-  formData.batchCode = generateBatchCode()
-  dialogVisible.value = true
-}
-
 // 打开编辑对话框
 const openEditDialog = (row) => {
   isEdit.value = true
@@ -433,15 +412,10 @@ const handleSubmit = async () => {
 
     submitLoading.value = true
     try {
-      let res
-      if (isEdit.value) {
-        res = await updateProduct(formData)
-      } else {
-        res = await addProduct(formData)
-      }
+      const res = await updateProduct(formData)
 
       if (res.code === 200) {
-        ElMessage.success(isEdit.value ? '编辑成功' : '新增成功')
+        ElMessage.success('编辑成功')
         dialogVisible.value = false
         loadList()
       } else {

@@ -22,4 +22,4 @@ mybatis-plus:
       id-type: auto # 主键自增
 
 app:
-  h5-base-url: http://192.168.1.9:3000 # 请改成固定可被手机访问的 H5 地址或域名
+  h5-base-url: http://172.20.10.5:3000 # 请改成固定可被手机访问的 H5 地址或域名

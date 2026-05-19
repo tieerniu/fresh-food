@@ -12,11 +12,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * 产品批次管理 Controller
@@ -88,62 +86,7 @@ public class ProductBatchController {
     public Map<String, Object> addProduct(
             @RequestBody ProductBatch productBatch,
             HttpServletRequest request) {
-        Map<String, Object> result = new HashMap<>();
-        try {
-            Integer userId = currentUserId(request);
-            String role = currentRole(request);
-            if (userId == null) {
-                return unauthorized();
-            }
-            if (!hasManagementRole(role)) {
-                return forbidden("仅管理员或企业用户可操作");
-            }
-
-            // 设置创建时间
-            productBatch.setCreatedAt(LocalDateTime.now());
-            normalizeBatchFields(productBatch);
-
-            // enterprise 只能绑定自己，admin 必须显式指定所属企业
-            if ("enterprise".equals(role)) {
-                productBatch.setManufacturerId(userId);
-            } else if (productBatch.getManufacturerId() == null) {
-                result.put("code", 400);
-                result.put("message", "管理员新增批次时必须指定所属企业");
-                result.put("data", null);
-                return result;
-            }
-
-            if (!isValidEnterprise(productBatch.getManufacturerId())) {
-                result.put("code", 400);
-                result.put("message", "请选择有效的企业账号");
-                result.put("data", null);
-                return result;
-            }
-            String validationMessage = validateBatchBeforeSave(productBatch, null);
-            if (validationMessage != null) {
-                result.put("code", 400);
-                result.put("message", validationMessage);
-                result.put("data", null);
-                return result;
-            }
-            // 插入数据库
-            int rows = productBatchMapper.insert(productBatch);
-
-            if (rows > 0) {
-                result.put("code", 200);
-                result.put("message", "新增成功");
-                result.put("data", productBatch);
-            } else {
-                result.put("code", 500);
-                result.put("message", "新增失败");
-                result.put("data", null);
-            }
-        } catch (Exception e) {
-            result.put("code", 500);
-            result.put("message", "新增失败: " + e.getMessage());
-            result.put("data", null);
-        }
-        return result;
+        return forbidden("正式产品批次必须由批次申报审核通过后自动生成");
     }
 
     /**
@@ -162,11 +105,8 @@ public class ProductBatchController {
 
             String role = currentRole(request);
             Integer userId = currentUserId(request);
-            if (!hasManagementRole(role)) {
-                return forbidden("仅管理员或企业用户可操作");
-            }
-            if ("enterprise".equals(role) && !Objects.equals(dbBatch.getManufacturerId(), userId)) {
-                return forbidden("无权删除其他企业批次");
+            if (!"admin".equals(role)) {
+                return forbidden("正式批次删除仅允许管理员操作");
             }
 
             productBatchService.deleteBatchCascade(id);
@@ -203,16 +143,11 @@ public class ProductBatchController {
 
             String role = currentRole(request);
             Integer userId = currentUserId(request);
-            if (!hasManagementRole(role)) {
-                return forbidden("仅管理员或企业用户可操作");
-            }
-            if ("enterprise".equals(role) && !Objects.equals(dbBatch.getManufacturerId(), userId)) {
-                return forbidden("无权修改其他企业批次");
+            if (!"admin".equals(role)) {
+                return forbidden("正式批次修改仅允许管理员操作");
             }
 
-            if ("enterprise".equals(role)) {
-                productBatch.setManufacturerId(userId);
-            } else if (productBatch.getManufacturerId() == null) {
+            if (productBatch.getManufacturerId() == null) {
                 result.put("code", 400);
                 result.put("message", "管理员编辑批次时必须指定所属企业");
                 result.put("data", null);
